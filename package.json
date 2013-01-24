@@ -1,6 +1,6 @@
 {
   "name": "noredis",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description":"simple shared storage for workers in nodejs cluster",
   "author":"Dongsu Jang <iolothebard@gmail.com>",
   "repository":{
