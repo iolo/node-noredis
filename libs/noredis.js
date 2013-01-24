@@ -6,46 +6,95 @@ var
   _DEBUG = !!process.env['NOREDIS_DEBUG'];
 
 if (cluster.isMaster) {
-  if (_DEBUG) { console.log('NOREDIS MASTER!'); }
+  _DEBUG && console.log('NOREDIS MASTER!');
 
+  // this is the shared storage!! just an object ;)
   var storage = {};
 
-  var replyToWorker = function (worker, msg, reply) {
-    if (msg.callback) {
-      worker.send({noredis: msg.callback, reply: storage[msg.key]});
+  // non-cluster impl.
+  var local = {
+    set:function (key, value) {
+      storage[key] = value;
+    },
+    get:function (key, callback) {
+      var reply = storage[key];
+      callback && callback(null, reply);
+    },
+    del:function (key, callback) {
+      // TODO: support multiple keys at once
+      delete storage[key];
+      callback && callback(null, 1);
+    },
+    exists:function (key, callback) {
+      var reply = key in storage;
+      callback && callback(null, reply);
+    },
+    incr:function (key, callback) {
+      var reply = ++storage[key];
+      callback && callback(null, reply);
+    },
+    decr:function (key, callback) {
+      var reply = --storage[key];
+      callback && callback(null, reply);
+    },
+    echo:function (message, callback) {
+      var reply = message;
+      callback && callback(null, reply);
     }
   };
 
   cluster.on('fork', function (worker) {
-    if (_DEBUG) { console.log('NEW NOREDIS WORKER#' + worker.id + ' FORK!'); }
+    _DEBUG && console.log('NEW NOREDIS WORKER#' + worker.id + ' FORK!');
 
     worker.on('message', function (msg) {
       if (msg.noredis) {
-        if (_DEBUG) { console.log('MASTER GOT NOREDIS MESSAGE FROM WORKER#' + worker.id + ':', msg); }
+        _DEBUG && console.log('MASTER GOT NOREDIS MESSAGE FROM WORKER#' + worker.id + ':', msg);
 
-        switch (msg.noredis) {
-          case 'set':
-            storage[msg.key] = msg.value;
-            break;
-          case 'get':
-            replyToWorker(worker, msg, storage[msg.key]);
-            break;
-          case 'incr':
-            replyToWorker(worker, msg, ++storage[msg.key]);
-            break;
-          case 'decr':
-            replyToWorker(worker, msg, --storage[msg.key]);
-            break;
+        if (msg.noredis) {
+          var callbackToWorker;
+          if (msg.callback) {
+            callbackToWorker = function (err, reply) {
+              worker.send({noredis:msg.callback, reply:reply});
+            };
+          } else {
+            callbackToWorker = null; // no-callback
+          }
+          switch (msg.noredis) {
+            case 'set':
+              local.set(msg.key, msg.value, callbackToWorker);
+              break;
+            case 'get':
+              local.get(msg.key, callbackToWorker);
+              break;
+            case 'del':
+              local.del(msg.key, callbackToWorker);
+              break;
+            case 'exists':
+              local.exists(msg.key, callbackToWorker);
+              break;
+            case 'incr':
+              local.incr(msg.key, callbackToWorker);
+              break;
+            case 'decr':
+              local.decr(msg.key, callbackToWorker);
+              break;
+            case 'echo':
+              local.echo(msg.message, callbackToWorker);
+              break;
+          }
         }
       }
     });
   });
 
   cluster.on('exit', function (worker) {
-    if (_DEBUG) { console.log('WORKER#' + worker.id + ' EXIT!'); }
+    _DEBUG && console.log('WORKER#' + worker.id + ' EXIT!');
   });
-} else if (cluster.isWorker) {
-  if (_DEBUG) { console.log('NOREDIS WORKER#' + cluster.worker.id); }
+
+  module.exports = local;
+}
+else if (cluster.isWorker) {
+  _DEBUG && console.log('NOREDIS WORKER#' + cluster.worker.id);
 
   var
     uniqMsgId = 0,
@@ -53,7 +102,8 @@ if (cluster.isMaster) {
 
   process.on('message', function (msg) {
     if (msg.noredis) {
-      if (_DEBUG) { console.log('WORKER#' + cluster.worker.id + ' GOT NOREDIS MESSAGE FROM MASTER: ', msg); }
+      _DEBUG && console.log('WORKER#' + cluster.worker.id + ' GOT NOREDIS MESSAGE FROM MASTER: ', msg);
+
       dispatcher.emit(msg.noredis, msg);
     }
   });
@@ -69,21 +119,28 @@ if (cluster.isMaster) {
     process.send(msg);
   };
 
-  exports.set = function (key, value) {
-    process.send({noredis: 'set', key: key, value: value});
+  module.exports = {
+    set:function (key, value) {
+      sendToMaster('set', { key:key, value:value });
+    },
+    get:function (key, callback) {
+      sendToMaster('get', { key:key }, callback);
+    },
+    del:function (key, callback) {
+      sendToMaster('del', { key:key }, callback);
+    },
+    incr:function (key, callback) {
+      sendToMaster('incr', { key:key }, callback);
+    },
+    decr:function (key, callback) {
+      sendToMaster('decr', { key:key }, callback);
+    },
+    exists:function (key, callback) {
+      sendToMaster('exists', { key:key }, callback);
+    },
+    echo:function (message, callback) {
+      sendToMaster('echo', { message:message }, callback);
+    }
+    // TODO: ... more commands
   };
-
-  exports.get = function (key, callback) {
-    sendToMaster('get', { key: key }, callback);
-  };
-
-  exports.incr = function (key, callback) {
-    sendToMaster('incr', { key: key }, callback);
-  };
-
-  exports.decr = function (key, callback) {
-    sendToMaster('decr', { key: key }, callback);
-  };
-
-  // TODO: ... more commands
 }
