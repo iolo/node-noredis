@@ -1,7 +1,7 @@
 {
   "name": "noredis",
-  "version": "0.0.4",
-  "description":"simple shared storage for workers in nodejs cluster",
+  "version": "0.0.5",
+  "description":"simple shared storage for nodejs cluster",
   "author":"Dongsu Jang <iolothebard@gmail.com>",
   "repository":{
     "type": "git",
@@ -12,6 +12,9 @@
     "node": ">=0.8"
   },
   "dependencies":{
+  },
+  "devDependencies":{
+    "nodeunit": ">=0.7.4"
   },
   "directories": {
     "lib": "./lib"
