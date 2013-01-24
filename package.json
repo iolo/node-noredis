@@ -1,0 +1,19 @@
+{
+  "name": "noredis",
+  "version": "0.0.1",
+  "description":"simple shared storage for workers in nodejs cluster",
+  "author":"Dongsu Jang <iolothebard@gmail.com>",
+  "repository":{
+    "type": "git",
+    "url": "git+ssh://git@github.com/iolo/node-noredis.git"
+  },
+  "license": "MIT",
+  "engine":{
+    "node": ">=0.8"
+  },
+  "dependencies":{
+  },
+  "directories": {
+    "lib": "./lib"
+  }
+}
