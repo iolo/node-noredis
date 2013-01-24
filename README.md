@@ -73,5 +73,5 @@ console.log('foo is ' + reply);
 });
 ```
 
-* see also [examples/nocluster.js](http://github.com/iolo/node-noredis/blob/master/examples/server.js)
+* see also [examples/nocluster.js](http://github.com/iolo/node-noredis/blob/master/examples/nocluster.js)
 
