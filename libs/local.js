@@ -4,6 +4,12 @@
 var storage = {};
 
 module.exports = {
+  flushall:function () {
+    storage = {};
+  },
+  flushdb:function () {
+    storage = {};
+  },
   set:function (key, value) {
     storage[key] = value;
   },
@@ -21,10 +27,16 @@ module.exports = {
     callback && callback(null, reply);
   },
   incr:function (key, callback) {
+    if (!(key in storage)) {
+      storage[key] = 0;
+    }
     var reply = ++storage[key];
     callback && callback(null, reply);
   },
   decr:function (key, callback) {
+    if (!(key in storage)) {
+      storage[key] = 0;
+    }
     var reply = --storage[key];
     callback && callback(null, reply);
   },

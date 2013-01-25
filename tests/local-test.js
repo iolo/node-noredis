@@ -4,6 +4,7 @@ var local = require('../libs/local');
 
 module.exports = {
   setUp:function (callback) {
+    local.flushall();
     local.set('foo', 'bar');
     local.set('baz', 100);
     callback();
@@ -47,9 +48,33 @@ module.exports = {
       test.done();
     });
   },
+  testIncrString:function (test) {
+    local.incr('foo', function (err, reply) {
+      test.ok(isNaN(reply));
+      test.done();
+    });
+  },
+  testIncrNotExist:function (test) {
+    local.incr('this-is-not-exists', function (err, reply) {
+      test.equal(1, reply);
+      test.done();
+    });
+  },
   testDecr:function (test) {
     local.decr('baz', function (err, reply) {
       test.equal(99, reply);
+      test.done();
+    });
+  },
+  testDecrString:function (test) {
+    local.decr('foo', function (err, reply) {
+      test.ok(isNaN(reply));
+      test.done();
+    });
+  },
+  testDecrNotExist:function (test) {
+    local.decr('this-is-not-exists', function (err, reply) {
+      test.equal(-1, reply);
       test.done();
     });
   },

@@ -25,6 +25,12 @@ process.on('message', function (msg) {
 });
 
 module.exports = {
+  flushall:function () {
+    sendToMaster('flushall', {});
+  },
+  flushdb:function () {
+    sendToMaster('flushdb', {});
+  },
   set:function (key, value) {
     sendToMaster('set', { key:key, value:value });
   },

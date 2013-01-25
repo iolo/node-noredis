@@ -6,6 +6,12 @@ var
 
 function execute(msg, callback) {
   switch (msg.noredis) {
+    case 'flushall':
+      local.flushall();
+      break;
+    case 'flushdb':
+      local.flushdb();
+      break;
     case 'set':
       local.set(msg.key, msg.value, callback);
       break;
