@@ -49,6 +49,9 @@ module.exports = {
   exists:function (key, callback) {
     sendToMaster('exists', { key:key }, callback);
   },
+  keys:function (pattern, callback) {
+    sendToMaster('keys', { pattern:pattern }, callback);
+  },
   echo:function (message, callback) {
     sendToMaster('echo', { message:message }, callback);
   }

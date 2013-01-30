@@ -13,7 +13,7 @@ function execute(msg, callback) {
       local.flushdb();
       break;
     case 'set':
-      local.set(msg.key, msg.value, callback);
+      local.set(msg.key, msg.value);
       break;
     case 'get':
       local.get(msg.key, callback);
@@ -29,6 +29,9 @@ function execute(msg, callback) {
       break;
     case 'decr':
       local.decr(msg.key, callback);
+      break;
+    case 'keys':
+      local.keys(msg.pattern, callback);
       break;
     case 'echo':
       local.echo(msg.message, callback);

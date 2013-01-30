@@ -40,6 +40,17 @@ module.exports = {
     var reply = --storage[key];
     callback && callback(null, reply);
   },
+  keys:function (pattern, callback) {
+    // TODO: need robust pattern parsing! esp. on backslash escape handling
+    var re = new RegExp(pattern.replace('?', '.').replace('*', '.*'));
+    var reply = [];
+    for (var key in storage) {
+      if (re.test(key)) {
+        reply.push(key);
+      }
+    }
+    callback && callback(null, reply);
+  },
   echo:function (message, callback) {
     var reply = message;
     callback && callback(null, reply);

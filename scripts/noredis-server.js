@@ -4,180 +4,241 @@ var net = require('net'),
 
 // see http://redis.io/topics/protocol
 
-var argc = 0, argl = 0;
-var args = [];
+var MULTIBULK = '*';//.charCodeAt(0);
+var BULK = '$';//.charCodeAt(0);
+var CR = '\r';//.charCodeAt(0);
+var LF = '\n';//.charCodeAt(0);
 
-var MULTIBULK = '*'.charCodeAt(0);
-var BULK = '$'.charCodeAt(0);
+var argsBuffer = [], multiBulkCount = 0, bulkCount = 0;
 
-function parseRequest(data) {
-  var line = data.toString('utf8');
-  if (argc === 0 && data[0] !== MULTIBULK && data[0] !== BULK) {
+function parseRequest(data, callback) {
+  if (multiBulkCount === 0 && data.charAt(0) !== MULTIBULK && data.charAt(0) !== BULK) {
     // legacy request format: a command and args in a line
-    args = line.replace('\r\n', '').split(' ');
+    _DEBUG && console.log('parsing legacy request:', data);
+    callback(data.replace('\r\n', '').split(' '));
     return true;
   }
 
   // TODO: robust parsing with error detection
-  line.split('\r\n').forEach(function (line) {
-    _DEBUG && console.log('***line=', line);
+  _DEBUG && console.log('parsing new unified request:', data);
+  data.split('\r\n').forEach(function (line) {
+    _DEBUG && console.log('parsing line:', line, 'multiBulkCount:', multiBulkCount, 'bulkCount:', bulkCount);
     if (line.length === 0) {
       return;
     }
-    switch (line.charCodeAt(0)) {
+    if (multiBulkCount > 0 && bulkCount > 0) {
+      _DEBUG && console.log('parsed arg=', line);
+      argsBuffer.push(line);
+      bulkCount = 0;
+      multiBulkCount -= 1;
+      if (multiBulkCount === 0) {
+        callback(argsBuffer);
+      }
+      return;
+    }
+    switch (line.charAt(0)) {
       case MULTIBULK:
-        if (argc > 0) {
+        if (multiBulkCount > 0) {
           throw 'expected \'$\', got \'' + line + '\'';
         }
-        argc = parseInt(line.substring(1), 10);
-        if (isNaN(argc) || argc <= 0) {
+        multiBulkCount = parseInt(line.substring(1), 10);
+        if (isNaN(multiBulkCount) || multiBulkCount <= 0) {
           throw 'Protocol Error: invalid multibulk';
         }
-        args = [];
-        _DEBUG && console.log('***argc=', argc);
+        argsBuffer = [];
+        _DEBUG && console.log('parsed multibulk:', multiBulkCount);
         break;
       case BULK:
-        if (argc === 0) {
+        if (multiBulkCount === 0) {
           throw 'unknown command \'' + line + '\'';
         }
-        argl = parseInt(line.substring(1), 10);
-        if (isNaN(argl) || argl <= 0) {
+        bulkCount = parseInt(line.substring(1), 10);
+        if (isNaN(bulkCount) || bulkCount <= 0) {
           throw 'Protocol Error: invalid bulk length';
         }
-        _DEBUG && console.log('***argl=', argl);
+        _DEBUG && console.log('parsed bulk:', bulkCount);
         break;
       default:
-        _DEBUG && console.log('***arg=', line);
-        args.push(line);
-        argc -= 1;
-        argl = 0;
+        _DEBUG && console.log('parsed arg=', line);
+        argsBuffer.push(line);
+        bulkCount = 0;
+        multiBulkCount -= 1;
+        if (multiBulkCount === 0) {
+          callback(argsBuffer);
+        }
         break;
     }
   });
-
-  // parse complete or continue
-  return (argc === 0);
 }
 
 function replyStatus(out, status) {
+  _DEBUG && console.log('*** status reply:', status);
   out.write('+');
-  out.write(status || 'OK');
+  out.write((typeof status === 'string') ? status : 'OK');
   out.write('\r\n');
 }
 
 function replyError(out, message, error) {
+  _DEBUG && console.log('*** error reply:', message, error);
   out.write('-');
-  out.write(error || 'ERR');
-  if (message) {
+  out.write((typeof error === 'string') ? error : 'ERR');
+  if (typeof message === 'string') {
     out.write(' ');
     out.write(message);
   }
   out.write('\r\n');
 }
 function replyInteger(out, int) {
+  _DEBUG && console.log('*** integer reply:', int);
   out.write(':');
   out.write(String(int));
   out.write('\r\n');
 }
+
 function replyBulk(out, arg) {
+  _DEBUG && console.log('*** bulk reply:', arg);
   out.write('$');
-  out.write(String(arg.length));
-  out.write('\r\n');
-  out.write(arg);
-  out.write('\r\n');
+  if (typeof arg !== 'undefined') {
+    out.write(String(String(arg).length));
+    out.write('\r\n');
+    out.write(String(arg));
+    out.write('\r\n');
+  } else {
+    out.write('-1\r\n'); // null bulk reply
+  }
 }
 
 function replyMultiBulk(out, args) {
+  _DEBUG && console.log('*** multi bulk reply:', args);
   out.write('*');
-  out.write(String(args.length));
-  out.write('\r\n');
-  args.forEach(function (arg) {
-    replyBulk(out, arg);
-  });
+  if (typeof args !== 'undefined') {
+    out.write(String(args.length));
+    out.write('\r\n');
+    args.forEach(function (arg) {
+      replyBulk(out, arg);
+    });
+  } else {
+    out.write('-1\r\n'); // null multi bulk reply
+  }
 }
 
-function proxyCallbackForBulkReply(out) {
+function callbackForIntegerReply(out) {
   return function (err, reply) {
-    replyBulk(out, reply);
-    replyStatus(out);
-  };
-}
-
-function proxyCallbackForIntegerReply(out) {
-  return function (err, reply) {
+    if (err) {
+      _DEBUG && console.log('reply error:', err);
+      return;
+    }
     replyInteger(out, reply);
-    replyStatus(out);
   };
 }
 
-function verifyArgCount(requiredArgCount) {
+function callbackForBulkReply(out) {
+  return function (err, reply) {
+    if (err) {
+      _DEBUG && console.log('reply error:', err);
+      return;
+    }
+    replyBulk(out, reply);
+  };
+}
+
+function callbackForMultiBulkReply(out) {
+  return function (err, reply) {
+    if (err) {
+      _DEBUG && console.log('reply error:', err);
+      return;
+    }
+    replyMultiBulk(out, reply);
+  };
+}
+
+function verifyArgCount(args, requiredArgCount) {
   if (args.length !== requiredArgCount) {
     throw '-ERR wrong number of arguments for \'' + args[0] + '\' command';
   }
 }
 
-net.createServer(function (socket) {
-  socket.setNoDelay(true);
+var commandHandlers = {
+  'quit': function (out, args) {
+    verifyArgCount(args, 0);
+    replyStatus(out);
+    return true; // quit
+  },
+  'ping': function (out, args) {
+    verifyArgCount(args, 0);
+    replyStatus(out, 'PONG');
+  },
+  'info': function (out, args) {
+    verifyArgCount(args, 0);
+    replyBulk(out, 'redis_version:2.0.0\r\nnoredis_version:0.0.1\r\n');
+  },
+  'flushall': function (out, args) {
+    verifyArgCount(args, 0);
+    noredis.flushall();
+    replyStatus(out);
+  },
+  'flushdb': function (out, args) {
+    verifyArgCount(args, 0);
+    noredis.flushall();
+    replyStatus(out);
+  },
+  'set': function (out, args) {
+    verifyArgCount(args, 2);
+    noredis.set(args[0], args[1]);
+    replyStatus(out);
+  },
+  'get': function (out, args) {
+    verifyArgCount(args, 1);
+    noredis.get(args[0], callbackForBulkReply(out));
+  },
+  'incr': function (out, args) {
+    verifyArgCount(args, 1);
+    noredis.incr(args[0], callbackForIntegerReply(out));
+  },
+  'keys': function (out, args) {
+    verifyArgCount(args, 1);
+    noredis.keys(args[0], callbackForMultiBulkReply(out));
+  },
+  'decr': function (out, args) {
+    verifyArgCount(args, 1);
+    noredis.decr(args[0], callbackForIntegerReply(out));
+  },
+  '': function (out, args) {
+  }
+};
 
-  socket.on('data', function (data) {
-    try {
-      if (!parseRequest(data)) {
-        // command not complete... need more args
-        return;
+function createServer() {
+  return net.createServer(function (socket) {
+    socket.setNoDelay(true);
+    socket.setEncoding('utf8');
+
+    socket.on('data', function (data) {
+      try {
+        parseRequest(data, function (args) {
+          _DEBUG && console.log('parsed command: ', args);
+          var command = args[0].toLowerCase();
+          var commandHandler = commandHandlers[command];
+          if (commandHandler) {
+            if (commandHandler(socket, args.slice(1))) {
+              socket.end();
+            }
+          } else {
+            throw 'unknown command \'' + args[0] + '\'';
+          }
+        });
+      } catch (e) {
+        replyError(socket, e);
+        socket.end();
+      } finally {
+        //
       }
+    });
 
-      switch (args[0].toLowerCase()) {
-        case 'quit':
-          verifyArgCount(1);
-          replyStatus(socket);
-          socket.end();
-          break;
-        case 'ping':
-          verifyArgCount(1);
-          replyStatus(socket, 'PONG');
-          break;
-        case 'info':
-          verifyArgCount(1);
-          replyBulk(socket, 'redis_version:2.0.0\r\nnoredis_version:0.0.1\r\n');
-          break;
-        case 'flushall':
-          verifyArgCount(1);
-          noredis.flushall();
-          replyStatus(socket);
-          break;
-        case 'flushdb':
-          verifyArgCount(1);
-          noredis.flushall();
-          replyStatus(socket);
-          break;
-        case 'set':
-          verifyArgCount(3);
-          noredis.set(args[1], args[2]);
-          replyStatus(socket);
-          break;
-        case 'get':
-          verifyArgCount(2);
-          noredis.get(args[1], proxyCallbackForBulkReply(socket));
-          break;
-        case 'incr':
-          verifyArgCount(2);
-          noredis.incr(args[1], proxyCallbackForIntegerReply(socket));
-          break;
-        case 'decr':
-          verifyArgCount(2);
-          noredis.decr(args[1], proxyCallbackForIntegerReply(socket));
-          break;
-        case '':
-          break;
-        default:
-          replyError(socket, 'unknown command \'' + args[0] + '\'');
-      }
-    } catch (e) {
-      replyError(socket, e);
-      socket.end();
-    } finally {
+  }).listen(6379);
+}
 
-    }
-  });
+exports.createServer = createServer;
 
-}).listen(6379);
+if (require.main === module) {
+  createServer();
+}

@@ -12,6 +12,26 @@ module.exports = {
   tearDown:function (callback) {
     callback();
   },
+  testFlushall:function (test) {
+    local.flushall();
+    local.exists('foo', function (err, reply) {
+      test.ok(!reply);
+      local.get('baz', function (err, reply) {
+        test.ok(!reply);
+        test.done();
+      });
+    });
+  },
+  testFlushdb:function (test) {
+    local.flushdb();
+    local.exists('foo', function (err, reply) {
+      test.ok(!reply);
+      local.get('baz', function (err, reply) {
+        test.ok(!reply);
+        test.done();
+      });
+    });
+  },
   testGetString:function (test) {
     local.get('foo', function (err, reply) {
       test.equal('bar', reply);
@@ -113,6 +133,31 @@ module.exports = {
     }
     local.get('baz', function (err, reply) {
       test.equal(100, reply);
+      test.done();
+    });
+  },
+  testKeys:function (test) {
+    local.keys('*', function (err, reply) {
+      test.ok(reply instanceof Array);
+      test.equal(2, reply.length);
+      test.equal('foo', reply[0]);
+      test.equal('baz', reply[1]);
+      test.done();
+    });
+  },
+  testKeysPrefixMatches:function (test) {
+    local.keys('f*', function (err, reply) {
+      test.ok(reply instanceof Array);
+      test.equal(1, reply.length);
+      test.equal('foo', reply[0]);
+      test.done();
+    });
+  },
+  testKeysPostfixMatches:function (test) {
+    local.keys('*o', function (err, reply) {
+      test.ok(reply instanceof Array);
+      test.equal(1, reply.length);
+      test.equal('foo', reply[0]);
       test.done();
     });
   },
