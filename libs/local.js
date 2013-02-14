@@ -1,7 +1,9 @@
 'use strict';
 
-// this is the shared storage!! just an object ;)
-var storage = {};
+var
+  fs = require('fs'),
+  storage = {}, // this is the shared storage!! just an object ;)
+  _DEBUG = !!process.env['NOREDIS_DEBUG'];
 
 module.exports = {
   flushall:function () {
@@ -54,6 +56,14 @@ module.exports = {
   echo:function (message, callback) {
     var reply = message;
     callback && callback(null, reply);
-  }
+  },
   // TODO: ... more commands
+  _loadStorage: function (filename) {
+    _DEBUG && console.log('load noredis storage from:', filename);
+    storage = JSON.parse(fs.readFileSync(filename, 'utf8'));
+  },
+  _saveStorage: function (filename, callback) {
+    _DEBUG && console.log('save noredis storage into:', filename);
+    fs.writeFile(filename, JSON.stringify(storage), 'utf8', callback);
+  }
 };

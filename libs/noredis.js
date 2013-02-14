@@ -2,6 +2,7 @@
 
 var
   cluster = require('cluster'),
+  path = require('path'),
   _DEBUG = !!process.env['NOREDIS_DEBUG'];
 
 if (cluster.isMaster) {
@@ -19,7 +20,26 @@ if (cluster.isMaster) {
   });
 
   // for non-cluster(master only) environment
-  module.exports = require('./local');
+  var local = require('./local');
+  module.exports = local;
+  module.exports.configure = function(config) {
+    if (config) {
+      if (config.persist) {
+        var filename = path.resolve(__dirname__, config.filename || 'noredis-storage.json');
+        var interval = config.interval || 10000;
+        local._loadStorage(filename);
+        setInterval(function () {
+          local._saveStorage(filename, function (err) {
+            if (err) {
+              return console.error('failed to save noredis storage!');
+            }
+            _DEBUG && console.log('succeed to save noredis storage.');
+          });
+        }, interval);
+      }
+    }
+    return local;
+  };
 
 } else if (cluster.isWorker) {
   _DEBUG && console.log('NOREDIS WORKER#' + cluster.worker.id);

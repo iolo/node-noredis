@@ -166,5 +166,23 @@ module.exports = {
       test.equal('hello', reply);
       test.done();
     });
+  },
+  testSaveAndLoad:function (test) { 
+    var filename = '/tmp/noredis-storage.json';
+    local.get('foo', function (err, reply) {
+      test.equal('bar', reply);
+      local._saveStorage(filename, function (err) {
+        test.ifError(err);
+        local.flushall();
+        local.get('foo', function (err, reply) {
+          test.ok(!reply);
+          local._loadStorage(filename);
+          local.get('foo', function (err, reply) {
+            test.equal('bar', reply);
+            test.done();
+          });
+        });
+      });
+    });
   }
 };
