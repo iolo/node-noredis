@@ -44,5 +44,10 @@ if (cluster.isMaster) {
   _DEBUG && console.log('NOREDIS WORKER#' + cluster.worker.id);
 
   // for worker -  stub(ipc client)
-  module.exports = require('./stub');
+  var stub = require('./stub');
+  module.exports = stub;
+  module.exports.configure = function(config) {
+    // no configurable options yet for worker ;)
+    return stub;
+  };
 }
