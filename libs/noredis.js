@@ -2,7 +2,6 @@
 
 var
   cluster = require('cluster'),
-  path = require('path'),
   _DEBUG = !!process.env['NOREDIS_DEBUG'];
 
 if (cluster.isMaster) {
@@ -25,7 +24,7 @@ if (cluster.isMaster) {
   module.exports.configure = function(config) {
     if (config) {
       if (config.persist) {
-        var filename = path.resolve(__dirname, config.filename || './noredis-storage.json');
+        var filename = config.filename || './noredis-storage.json';
         var interval = config.interval || 10000;
         local._loadStorage(filename);
         setInterval(function () {

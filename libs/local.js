@@ -59,8 +59,12 @@ module.exports = {
   },
   // TODO: ... more commands
   _loadStorage: function (filename) {
-    _DEBUG && console.log('load noredis storage from:', filename);
-    storage = JSON.parse(fs.readFileSync(filename, 'utf8'));
+    if (fs.existsSync(filename)) {
+      _DEBUG && console.log('load noredis storage from:', filename);
+      storage = JSON.parse(fs.readFileSync(filename, 'utf8'));
+    } else {
+      _DEBUG && console.log('no file to load noredis storage from:', filename);
+    }
   },
   _saveStorage: function (filename, callback) {
     _DEBUG && console.log('save noredis storage into:', filename);
