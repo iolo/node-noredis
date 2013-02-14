@@ -25,7 +25,7 @@ if (cluster.isMaster) {
   module.exports.configure = function(config) {
     if (config) {
       if (config.persist) {
-        var filename = path.resolve(__dirname__, config.filename || 'noredis-storage.json');
+        var filename = path.resolve(__dirname, config.filename || './noredis-storage.json');
         var interval = config.interval || 10000;
         local._loadStorage(filename);
         setInterval(function () {
