@@ -30,8 +30,41 @@ function execute(msg, callback) {
     case 'decr':
       local.decr(msg.key, callback);
       break;
+    case 'incrby':
+      local.incr(msg.key, msg.increment, callback);
+      break;
+    case 'decrby':
+      local.decr(msg.key, msg.decrement, callback);
+      break;
     case 'keys':
       local.keys(msg.pattern, callback);
+      break;
+    case 'hset':
+      local.hset(msg.key, msg.field, msg.value, callback);
+      break;
+    case 'hget':
+      local.hget(msg.key, msg.field, callback);
+      break;
+    case 'hdel':
+      local.hdel(msg.key, msg.field, callback);
+      break;
+    case 'hexists':
+      local.hexists(msg.key, msg.field, callback);
+      break;
+    case 'hincrby':
+      local.hincrby(msg.key, msg.increment, callback);
+      break;
+    case 'hlen':
+      local.hlen(msg.key, callback);
+      break;
+    case 'hkeys':
+      local.hkeys(msg.key, callback);
+      break;
+    case 'hvals':
+      local.hvals(msg.key, callback);
+      break;
+    case 'hgetall':
+      local.hgetall(msg.key, callback);
       break;
     case 'echo':
       local.echo(msg.message, callback);

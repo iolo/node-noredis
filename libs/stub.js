@@ -25,35 +25,68 @@ process.on('message', function (msg) {
 });
 
 module.exports = {
-  flushall:function () {
+  flushall: function () {
     sendToMaster('flushall', {});
   },
-  flushdb:function () {
+  flushdb: function () {
     sendToMaster('flushdb', {});
   },
-  set:function (key, value) {
-    sendToMaster('set', { key:key, value:value });
+  set: function (key, value) {
+    sendToMaster('set', {key: key, value: value});
   },
-  get:function (key, callback) {
-    sendToMaster('get', { key:key }, callback);
+  get: function (key, callback) {
+    sendToMaster('get', {key: key}, callback);
   },
-  del:function (key, callback) {
-    sendToMaster('del', { key:key }, callback);
+  del: function (key, callback) {
+    sendToMaster('del', {key: key}, callback);
   },
-  incr:function (key, callback) {
-    sendToMaster('incr', { key:key }, callback);
+  incr: function (key, callback) {
+    sendToMaster('incr', {key: key}, callback);
   },
-  decr:function (key, callback) {
-    sendToMaster('decr', { key:key }, callback);
+  decr: function (key, callback) {
+    sendToMaster('decr', {key: key}, callback);
   },
-  exists:function (key, callback) {
-    sendToMaster('exists', { key:key }, callback);
+  incrby: function (key, increment, callback) {
+    sendToMaster('incrby', {key: key, increment: increment}, callback);
   },
-  keys:function (pattern, callback) {
-    sendToMaster('keys', { pattern:pattern }, callback);
+  decrby: function (key, decrement, callback) {
+    sendToMaster('decrby', {key: key, decrement: decrement}, callback);
   },
-  echo:function (message, callback) {
-    sendToMaster('echo', { message:message }, callback);
+  exists: function (key, callback) {
+    sendToMaster('exists', {key: key}, callback);
+  },
+  keys: function (pattern, callback) {
+    sendToMaster('keys', {pattern: pattern}, callback);
+  },
+  hset: function (key, field, value, callback) {
+    sendToMaster('hset', {key: key, field: field, value: value}, callback);
+  },
+  hget: function (key, field, callback) {
+    sendToMaster('hget', {key: key, field: field}, callback);
+  },
+  hdel: function (key, field, callback) {
+    sendToMaster('hdel', {key: key, field: field}, callback);
+  },
+  hexists: function (key, field, callback) {
+    sendToMaster('hexists', {key: key, field: field}, callback);
+  },
+  hincrby: function (key, field, increment, callback) {
+    sendToMaster('hincrby', {key: key, field: field, increment: increment}, callback);
+  },
+  hlen: function (key, callback) {
+    sendToMaster('hlen', {key: key}, callback);
+  },
+  hkeys: function (key, callback) {
+    sendToMaster('hkeys', {key: key}, callback);
+  },
+  hvals: function (key, callback) {
+    sendToMaster('hvals', {key: key}, callback);
+  },
+  hgetall: function (key, callback) {
+    sendToMaster('hgetall', {key: key}, callback);
+  },
+  echo: function (message, callback) {
+    sendToMaster('echo', {message: message}, callback);
   }
   // TODO: ... more commands
 };
