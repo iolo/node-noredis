@@ -8,13 +8,9 @@ This is a simple "shared storage" for nodejs cluster without redis-like daemon.
 Features
 --------
 
-* set
-* get
-* del
-* exists
-* incr
-* decr
-* echo
+* set/get/del/exists/incr/decr/incrby/decrby/keys
+* hset/hget/hdel/hexists/hincrby/hlen/hkeys/hvals/hgetall
+* echo/flushall/flushdb
 * TODO: ....
 * see also [redis command reference](http://redis.io/commands) for supported commands
 
